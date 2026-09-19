@@ -1,34 +1,39 @@
 #1.SERVICES
 services:
-  #serivce_name1
+  #service_name1 (this name is the hostname used in DATABASE_URL)
   postgres:
     image: postgres:16-alpine
     command: postgres -c shared_buffers=128MB
     container_name: cityfix_db
-  #environment_variables aka values injected to the container
+    #environment variables injected into the container
     environment:
       POSTGRES_DB: cityfix
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin123
-  #ports user_pc : container
+    #ports user_pc : container
     ports:
       - "5432:5432"
-  #volumes gives persistent storage
+    #volumes give persistent storage
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    #reports "healthy" only when Postgres accepts connections
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d cityfix"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   #service_name2
   backend:
     build: ./backend
     container_name: cityfix_api
-  #ports user_id : container
+    #ports user_pc : container
     ports:
       - "8000:8000"
-
+    #wait for postgres to be healthy, not just started
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
 
 volumes:
   postgres_data:
-
-  
