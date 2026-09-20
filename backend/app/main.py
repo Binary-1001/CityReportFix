@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.database import Base, engine, SessionLocal
 from app import models  , schemas # must be imported so Report registers with Base
+from app.kafka import publish_event
 
 #runs once at startup: creates any missing tables
 @asynccontextmanager
@@ -26,12 +27,19 @@ def get_db():
 def root():
     return {"status": "ok"}
 
-@app.post("/reports", response_model=schemas.ReportResponse , status_code=201)
+@app.post("/reports" , response_model=schemas.ReportResponse , status_code= 201)
 def create_report(report_in:schemas.ReportCreate , db: Session = Depends(get_db)):
     report = models.Report(**report_in.model_dump())
     db.add(report)
     db.commit()
     db.refresh(report)
+
+    publish_event(
+        "report-created",
+        key=str(report.id),
+        payload=schemas.ReportResponse.model_validate(report).model_dump()
+    )
+
     return report
 
 @app.get("/reports", response_model=list[schemas.ReportResponse])
@@ -79,3 +87,6 @@ def delete_report(report_id:int , db: Session = Depends(get_db)):
     
     db.delete(report)
     db.commit()
+
+
+

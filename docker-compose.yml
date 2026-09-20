@@ -12,10 +12,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin -d cityfix"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U admin -d cityfix"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
 
   backend:
     build: ./backend
@@ -25,6 +26,39 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redpanda:
+        condition: service_healthy
 
+  consumer:
+      build: ./backend
+      container_name: cityfix_consumer
+      command: ["python", "-m", "app.consumer"]
+      depends_on:
+        postgres:
+          condition: service_healthy
+        redpanda:
+          condition: service_healthy
+          
+  redpanda:
+    image: redpandadata/redpanda:v24.2.7
+    container_name: cityfix_redpanda
+    command:
+      - redpanda
+      - start
+      - --smp=1
+      - --memory=512M
+      - --overprovisioned
+      - --reserve-memory=0M
+      - --node-id=0
+      - --check=false
+      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr=internal://redpanda:9092,external://localhost:19092
+    ports:
+      - "19092:19092"
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 volumes:
   postgres_data:

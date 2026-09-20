@@ -2,3 +2,4 @@ fastapi # Python API Framework
 uvicorn #Runs the fastapi
 sqlalchemy #ORM
 psycopg2-binary #PostgresSQL driver
+confluent-kafka #Streaming-Event  platform 
